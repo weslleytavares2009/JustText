@@ -29,7 +29,3 @@ class App(tk.Tk):
         
         frame.pack(fill="both", expand=True)
         frame.update()
-
-if __name__ == "__main__":
-    app: App = App("JustText")
-    app.mainloop()
