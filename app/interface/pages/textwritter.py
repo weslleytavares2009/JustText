@@ -28,16 +28,19 @@ class TextWritter(tk.Frame):
         master.menu.configure(bg=self.cget("bg"))
         master.menu.add_cascade(label="File", menu=self.actions_menu)
 
+        # Lambdas
+        get_text = lambda: self.entry.get("1.0", tk.END)
+
         # Menu options
         self.actions_menu.add_command(label="Open File", command=self.user_file_path)
         self.actions_menu.add_command(label="Save File", 
                                       command=lambda: SaveFile.save(
-                                          self.entry.get("1.0", tk.END),
+                                          get_text(),
                                           self.current_file
                                         ))
         self.actions_menu.add_command(label="Save as File",
                                       command=lambda: SaveFile.save_as(
-                                          self.entry.get("1.0", tk.END)
+                                          get_text()
                                       ))
         
         # Text Entry
@@ -60,8 +63,15 @@ class TextWritter(tk.Frame):
                 self.create_tab(new_file)
         
         # Bind events
-        Events.bind("WriteInEditor", self.write) # Bind write event to write function
+        Events.bind("WriteInEditor", self.write)
         Events.bind("TabSwitch", switch_file)
+        
+        # Keybinds (Still events)
+        Events.bind("OpenFile", self.user_file_path)
+        Events.bind("SaveFile", lambda: SaveFile.save(get_text(), self.current_file))
+        Events.bind("SaveFileAs", lambda: SaveFile.save_as(get_text()))
+        Events.bind("CreateTab", lambda: self.create_tab("Untitled"))
+        Events.bind("DestroyTab", lambda: self.destroy_tab(self.current_file))
         
         # If no file is open, ask for a file. If no file is selected, create a blank tab.
         if len(self.tab_list) == 0:
