@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter.font import Font  
 from src.events import Events
-from src.file_operations import FileOpenDialog, LoadFile
+from src.file_operations import FileOpenDialog, LoadFile, SaveFile
 
 class TextWritter(tk.Frame):
     def __init__(self, *args, **kwargs):
@@ -30,6 +30,15 @@ class TextWritter(tk.Frame):
 
         # Menu options
         self.actions_menu.add_command(label="Open File", command=self.user_file_path)
+        self.actions_menu.add_command(label="Save File", 
+                                      command=lambda: SaveFile.save(
+                                          self.entry.get("1.0", tk.END),
+                                          self.current_file
+                                        ))
+        self.actions_menu.add_command(label="Save as File",
+                                      command=lambda: SaveFile.save_as(
+                                          self.entry.get("1.0", tk.END)
+                                      ))
         
         # Text Entry
         self.entry = tk.Text(self, bg="#21252b", fg="#abb2bf", font=consolas,
@@ -41,6 +50,14 @@ class TextWritter(tk.Frame):
         def switch_file(new_file: str): # Update the current file user is editing
             self.current_file = new_file
             
+            # Create a new tab for the file (if there's none)
+            if not self.tab_list.get(new_file):
+                self.create_tab(new_file)
+            
+            # Remove untitled tab to open a new tab
+            if self.tab_list.get("Untitled"):
+                self.destroy_tab("Untitled", True)
+                self.create_tab(new_file)
         
         # Bind events
         Events.bind("WriteInEditor", self.write) # Bind write event to write function
@@ -52,8 +69,13 @@ class TextWritter(tk.Frame):
       
     def create_tab(self, path: str) -> None:
         """Create a tab for the file.
+        
         Parameters:
         - name: str: Name of the file to be displayed in tab."""
+        # Return if tab already exists
+        if self.tab_list.get(path):
+            return
+        
         # Font to be used in tab
         consolas: Font = Font(family="Consolas", size=12, weight="normal")
         
@@ -61,7 +83,7 @@ class TextWritter(tk.Frame):
         name: str = path.split("/")[-1]
         
         # Creating tab
-        self.tab_list[path] = self.tab_list.get(path) or {}
+        self.tab_list[path] = {}
         self.tab_list[path]["Frame"] = tk.Frame(
             master=self.tab_file, bg="#21252b", width=13,
         )
@@ -94,8 +116,10 @@ class TextWritter(tk.Frame):
       
     def destroy_tab(self, path: str, ignore_blank: bool=False) -> None:
         """Destroy a tab on text editor.
+        
         Parameters:
-        path: str: Path of the file to be destroyed."""
+        path: Path of the file to be destroyed.
+        ignore_blank: If there's no tab open, don't ask user to open a file"""
         if self.tab_list.get(path):
             # Destroying tab & buttons
             self.tab_list[path]["Button"].destroy()
@@ -144,6 +168,7 @@ class TextWritter(tk.Frame):
     def write(self, text: str="", clear_text: bool = False) -> None:
         """Overwrite or add text in the entry. Note that this method isn't used by the user.
         It's used only by program to write text in the entry.
+        
         Parameters:
         - text: str: Text to be added to the entry.
         - clear_text: bool: Clear the entry before adding the text."""

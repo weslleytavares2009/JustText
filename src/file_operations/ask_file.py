@@ -19,9 +19,30 @@ class FileSaveDialog:
         - default_ext: The default extension of the file to be saved (Optional).
         - initial_dir: The initial directory to open the file dialog (Optional).
         - initial_file: The initial file to be selected. (Optional)"""
+        file = filedialog.asksaveasfile(
+                    defaultextension=default_ext,
+                    filetypes=[("All files", "*.*")],
+                    initialdir=initial_dir,
+                    initialfile=initial_file
+                )
+        
+        if file:
+            file_name: str = file.name  
+            file.close()
+            return file_name
+        else:
+            return None
+
+    def ask_save_as(default_ext: str = ".txt", initial_dir: str = None, 
+                      initial_file: str = None) -> str | None:
+        """Ask the user to save a file. Returns the path of the file or None.
+        Parameters:
+        - default_ext: The default extension of the file to be saved (Optional).
+        - initial_dir: The initial directory to open the file dialog (Optional).
+        - initial_file: The initial file to be selected. (Optional)"""
         return filedialog.asksaveasfilename(
-            defaultextension=default_ext,
-            filetypes=[("All files", "*.*")],
-            initialdir=initial_dir,
-            initialfile=initial_file
-        )
+                    defaultextension=default_ext,
+                    filetypes=[("All files", "*.*")],
+                    initialdir=initial_dir,
+                    initialfile=initial_file
+                )
