@@ -10,14 +10,7 @@ class LoadFile:
             with open(file_path, "r") as file:
                 if file.readable():
                     content: str = file.read()
-                    Events.trigger("WriteInEditor", content, True)
+                    Events.trigger("WriteInEditor", file_path, content, True)
                     Events.trigger("TabSwitch", file_path)
         elif not path.exists(file_path):
-            if file_path == "Untitled": # Special treatment for untitled file (created automatically)
-                messagebox.showwarning(
-                    title="File warning", 
-                    message="This file is not saved in any directory. "
-                            "Open a new file or save this one to switch between files."
-                    )
-            else:   
-                messagebox.showerror("File error", "File does not exist.")
+            messagebox.showerror("File error", "File does not exist or has been moved.")

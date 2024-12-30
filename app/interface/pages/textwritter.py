@@ -1,7 +1,9 @@
 import tkinter as tk
+from tempfile import TemporaryFile, gettempdir
 from tkinter.font import Font  
 from src.events import Events
 from src.file_operations import FileOpenDialog, LoadFile, SaveFile
+from os.path import dirname
 
 class TextWritter(tk.Frame):
     def __init__(self, *args, **kwargs):
@@ -12,7 +14,6 @@ class TextWritter(tk.Frame):
         self.configure(bg="#282c34")
 
         # Fonts
-        consolas: Font = Font(family="Consolas", size=12, weight="normal")
         segoe_ui: Font = Font(family="Segoe UI", size=10, weight="normal")
 
         # Files tab
@@ -29,7 +30,7 @@ class TextWritter(tk.Frame):
         master.menu.add_cascade(label="File", menu=self.actions_menu)
 
         # Lambdas
-        get_text = lambda: self.entry.get("1.0", tk.END)
+        get_text = lambda: self.tab_list[self.current_file]["Entry"].get("1.0", tk.END)
 
         # Menu options
         self.actions_menu.add_command(label="Open File", command=self.user_file_path)
@@ -42,26 +43,18 @@ class TextWritter(tk.Frame):
                                       command=lambda: SaveFile.save_as(
                                           get_text()
                                       ))
-        
-        # Text Entry
-        self.entry = tk.Text(self, bg="#21252b", fg="#abb2bf", font=consolas,
-                             insertbackground="#abb2bf", bd=0, highlightthickness=0,
-                             selectbackground="#3e4451", selectforeground="#abb2bf")
-        self.entry.pack(fill="both", side="left", expand=True)
-        
+
         # Event func
-        def switch_file(new_file: str): # Update the current file user is editing
-            self.current_file = new_file
-            
+        def switch_file(new_file: str):
+            """Switch opened file"""
             # Create a new tab for the file (if there's none)
             if not self.tab_list.get(new_file):
                 self.create_tab(new_file)
             
-            # Remove untitled tab to open a new tab
-            if self.tab_list.get("Untitled"):
-                self.destroy_tab("Untitled", True)
-                self.create_tab(new_file)
-        
+            # Hide files
+            self.hide_texts(new_file)
+            self.current_file = new_file
+            
         # Bind events
         Events.bind("WriteInEditor", self.write)
         Events.bind("TabSwitch", switch_file)
@@ -70,12 +63,11 @@ class TextWritter(tk.Frame):
         Events.bind("OpenFile", self.user_file_path)
         Events.bind("SaveFile", lambda: SaveFile.save(get_text(), self.current_file))
         Events.bind("SaveFileAs", lambda: SaveFile.save_as(get_text()))
-        Events.bind("CreateTab", lambda: self.create_tab("Untitled"))
+        Events.bind("CreateTab", self.create_temp_file)
         Events.bind("DestroyTab", lambda: self.destroy_tab(self.current_file))
         
-        # If no file is open, ask for a file. If no file is selected, create a blank tab.
-        if len(self.tab_list) == 0:
-            self.user_file_path()
+        # Create a blank tab.
+        self.create_temp_file()
       
     def create_tab(self, path: str) -> None:
         """Create a tab for the file.
@@ -89,8 +81,39 @@ class TextWritter(tk.Frame):
         # Font to be used in tab
         consolas: Font = Font(family="Consolas", size=12, weight="normal")
         
-        # Collecting file name from path
-        name: str = path.split("/")[-1]
+        
+        # Returns an unique name for temp files
+        def best_temp_name() -> str:
+            """Gets the best unique name for temporary/unsaved files."""
+            highest_blank: int = 0
+            
+            for tab_path in self.tab_list.values():
+                # Button label
+                file_label: str = tab_path["Button"].cget("text")
+                
+                if file_label == "Untitled":
+                    highest_blank = 1
+                    continue
+                    
+                split_tab: list[str] = file_label.split("Untitled")
+                if len(split_tab) > 0:
+                    try:
+                        highest_blank = int(split_tab[-1]) + 1
+                    except ValueError:
+                        pass # No needs to threat the error
+                    
+            return highest_blank > 0 and f"Untitled {highest_blank}" or "Untitled"
+        
+        # Collecting file name. Name it's visual only
+        is_temp_file: bool = gettempdir() == dirname(path) # check if file is temporary
+        name: str = is_temp_file and best_temp_name() or path.split("/")[-1]
+        
+        # Function to be called whwen the tab button be clicked
+        def interact_tab() -> None:
+            self.hide_texts(path)
+            
+            if self.tab_list.get(path):
+                self.current_file = path
         
         # Creating tab
         self.tab_list[path] = {}
@@ -102,7 +125,7 @@ class TextWritter(tk.Frame):
             master=self.tab_list[path]["Frame"], text=name, font=consolas,
             bg="#21252b", fg="#E1E1E1", bd=0, highlightthickness=0, width=13,
             activebackground="#3e4451", activeforeground="#E1E1E1",
-            command=lambda: LoadFile.load(path)
+            command=interact_tab
         )
         
         self.tab_list[path]["Close"] = tk.Button(
@@ -112,18 +135,32 @@ class TextWritter(tk.Frame):
             command=lambda: self.destroy_tab(path)
         )
         
+        self.tab_list[path]["Entry"] = tk.Text(self, bg="#21252b", fg="#abb2bf", font=consolas,
+                             insertbackground="#abb2bf", bd=0, highlightthickness=0,
+                             selectbackground="#3e4451", selectforeground="#abb2bf")
+        
         # Updating current file
         self.current_file = path
+        
+        # Setting default text content (if it's a temp file)
+        if is_temp_file:
+            self.write(
+                        filepath=self.tab_list[path]["Entry"],
+                        text="NOTE: This file was created automatically and is not saved in any directory. "
+                            "If you open a new file or close the program, everything here will be lost unless you save it.", 
+                        clear_text=True)
         
         # Packing tab
         close_bttn: tk.Button = self.tab_list[path]["Close"]
         interact_bttn: tk.Button = self.tab_list[path]["Button"]
         frame: tk.Frame = self.tab_list[path]["Frame"]
+        entry: tk.Text = self.tab_list[path]["Entry"]
         
+        entry.pack(fill="both", side="left", expand=True)
         close_bttn.pack(side="right")
         interact_bttn.pack(side="right")
         frame.pack(fill="both", side="left")
-      
+    
     def destroy_tab(self, path: str, ignore_blank: bool=False) -> None:
         """Destroy a tab on text editor.
         
@@ -135,6 +172,7 @@ class TextWritter(tk.Frame):
             self.tab_list[path]["Button"].destroy()
             self.tab_list[path]["Close"].destroy()
             self.tab_list[path]["Frame"].destroy()
+            self.tab_list[path]["Entry"].destroy()
             del self.tab_list[path]
             
             # If the file is the current file, load the last file in the tab list
@@ -154,6 +192,37 @@ class TextWritter(tk.Frame):
                         self.current_file = None
                         self.user_file_path()
 
+    def hide_texts(self, exception: str | None = None):
+        """Hide every text input (entry)
+        
+        Parameters:
+        - exception: Hide all entries EXCEPT entry for this path"""
+        # Updating entry visibility
+        for filename, value in self.tab_list.items():
+            entry: tk.Text = value["Entry"]
+            entry.pack_forget()
+                    
+            if exception and filename == exception:
+                entry.pack(fill="both", side="left", expand=True)
+
+    def create_temp_file(self) -> None:
+        """Creates a temporary file. AKA Blank, Empty or Untitled file.
+        Also create a new tab for it.
+        
+        Parameters:
+        - cancel_tab_switch: If true, it will not fire TabSwitch"""
+        pathname: str = ""
+
+        with TemporaryFile(mode="w", delete=False, delete_on_close=False) as f:
+            pathname = f.name
+            f.close()
+            
+        LoadFile.load(pathname)
+        self.create_tab(pathname)
+        
+        # entry: tk.Text = self.tab_list[pathname]["Entry"]
+        # SaveFile.save(entry.get("1.0", tk.END), pathname)
+
     def user_file_path(self) -> None:
         """Ask the user for a file path. If no file is provided, create a blank tab.
         This method also loads the file into the text editor and creates a tab for it."""
@@ -161,28 +230,26 @@ class TextWritter(tk.Frame):
         file: str | None = FileOpenDialog.ask_open_file()
         
         if file:
-            # Destroy untitled tab if it exists
-            self.destroy_tab("Untitled", True)
-            
             # Load the file and create a tab for it
-            LoadFile.load(file)
             self.create_tab(file)
+            self.hide_texts(exception=file)
+            LoadFile.load(file)
         else:
             if len(self.tab_list) == 0:
-                self.create_tab("Untitled")
-                self.write(
-                    text="NOTE: This file was created automatically and is not saved in any directory. "
-                         "If you open a new file or close the program, everything here will be lost unless you save it.", 
-                    clear_text=True)
+                self.create_temp_file()
 
-    def write(self, text: str="", clear_text: bool = False) -> None:
+    def write(self, filepath: str, text: str="", 
+              clear_text: bool = False) -> None:
         """Overwrite or add text in the entry. Note that this method isn't used by the user.
         It's used only by program to write text in the entry.
         
         Parameters:
         - text: str: Text to be added to the entry.
         - clear_text: bool: Clear the entry before adding the text."""
-        if clear_text:
-            self.entry.delete("1.0", tk.END)
-        
-        self.entry.insert(tk.END, text)
+        if self.tab_list.get(filepath):
+            entry: tk.Text = self.tab_list[filepath]["Entry"]
+            
+            if clear_text:
+                entry.delete("1.0", tk.END)
+            
+            entry.insert(tk.END, text)
