@@ -31,7 +31,7 @@ class SaveFile:
                     file.truncate(0)
                     file.write(content[:-1:])
                     
-                    # if not cancel_event:
+                    Events.trigger("FileSaved", file_path)
                     Events.trigger("TabSwitch", file_path)
                 else: # File can't be writted
                     messagebox.showwarning("File can't be writed",

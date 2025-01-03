@@ -3,7 +3,8 @@ from tempfile import TemporaryFile, gettempdir
 from tkinter.font import Font  
 from src.events import Events
 from src.file_operations import FileOpenDialog, LoadFile, SaveFile
-from os.path import dirname
+from os.path import dirname, exists
+from os import remove
 
 class TextWritter(tk.Frame):
     def __init__(self, *args, **kwargs):
@@ -19,7 +20,9 @@ class TextWritter(tk.Frame):
         # Files tab
         self.tab_file = tk.Canvas(self, bg=self.cget("bg"), height=0, bd=0, highlightthickness=0)
         self.tab_file.pack(fill="x", side="top")
+        
         self.tab_list = {}
+        self.editing_list = []
         self.current_file = None
 
         # Interactive menu
@@ -55,9 +58,15 @@ class TextWritter(tk.Frame):
             self.hide_texts(new_file)
             self.current_file = new_file
             
+        def on_file_saved(file_path: str):
+            """Called when a file is sucessfully saved. It removes the file from editing list."""
+            if file_path in self.editing_list:
+                self.editing_list.remove(file_path)
+        
         # Bind events
         Events.bind("WriteInEditor", self.write)
         Events.bind("TabSwitch", switch_file)
+        Events.bind("FileSaved", on_file_saved)
         
         # Keybinds (Still events)
         Events.bind("OpenFile", self.user_file_path)
@@ -80,7 +89,6 @@ class TextWritter(tk.Frame):
         
         # Font to be used in tab
         consolas: Font = Font(family="Consolas", size=12, weight="normal")
-        
         
         # Returns an unique name for temp files
         def best_temp_name() -> str:
@@ -160,6 +168,14 @@ class TextWritter(tk.Frame):
         close_bttn.pack(side="right")
         interact_bttn.pack(side="right")
         frame.pack(fill="both", side="left")
+        
+        # Binding events
+        def on_typing(event: tk.Event):
+            """Called when user types anything in file."""
+            if not path in self.editing_list:
+                self.editing_list.append(path)
+        
+        entry.bind("<KeyPress>", on_typing)
     
     def destroy_tab(self, path: str, ignore_blank: bool=False) -> None:
         """Destroy a tab on text editor.
@@ -175,6 +191,11 @@ class TextWritter(tk.Frame):
             self.tab_list[path]["Entry"].destroy()
             del self.tab_list[path]
             
+            # If the file is a blank file, destroy the temp file
+            # TODO: Later, I will to add a feature to ask if user wants to save changes
+            if gettempdir() == dirname(path) and exists(path):
+                remove(path)
+                
             # If the file is the current file, load the last file in the tab list
             if path == self.current_file:
                 if len(self.tab_list) > 0: # If there are tabs left

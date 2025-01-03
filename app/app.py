@@ -1,5 +1,6 @@
 import tkinter as tk
 from .interface.pages.textwritter import TextWritter
+from tkinter import messagebox
 
 class App(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -19,8 +20,27 @@ class App(tk.Tk):
         # App thing
         self.pages: list[tk.Frame] = [TextWritter(self)]
         
+        # Bindings
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
         # Init
         self.switch_frame(self.pages[0])
+
+    def on_closing(self):
+        """Called when the window is destroyed."""
+        # TODO: Ask the user if he wants to save changes
+        
+        # Get the opened files to destroy tabs & temporary files
+        opened_files: dict = self.pages[0].tab_list.copy() # Copy the dict because it will be modified
+        
+        for file_path in opened_files.keys():
+            self.pages[0].destroy_tab(file_path, True)
+            
+        # Destroying references
+        opened_files.clear()
+        opened_files = None
+        
+        self.quit() # This method will destroy the window properly.
 
     def switch_frame(self, frame: tk.Frame):
         """Switch the current window (frame) to the given frame"""
