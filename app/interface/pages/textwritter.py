@@ -73,7 +73,8 @@ class TextWritter(tk.Frame):
         Events.bind("SaveFile", lambda: SaveFile.save(get_text(), self.current_file))
         Events.bind("SaveFileAs", lambda: SaveFile.save_as(get_text()))
         Events.bind("CreateTab", self.create_temp_file)
-        Events.bind("DestroyTab", lambda: self.destroy_tab(self.current_file))
+        Events.bind("DestroyTab", lambda path, ignore: self.destroy_tab(
+                                    path or self.current_file, ignore or False))
         
         # Create a blank tab.
         self.create_temp_file()
@@ -212,6 +213,17 @@ class TextWritter(tk.Frame):
                     if not ignore_blank:
                         self.current_file = None
                         self.user_file_path()
+        elif (path == "blank" and gettempdir() == dirname(self.current_file) 
+                and exists(self.current_file)): # If the file is a blank file
+            # Destroying tab & buttons
+            self.tab_list[self.current_file]["Button"].destroy()
+            self.tab_list[self.current_file]["Close"].destroy()
+            self.tab_list[self.current_file]["Frame"].destroy()
+            self.tab_list[self.current_file]["Entry"].destroy()
+            del self.tab_list[self.current_file]
+            
+            remove(self.current_file)
+            self.current_file = None
 
     def hide_texts(self, exception: str | None = None):
         """Hide every text input (entry)

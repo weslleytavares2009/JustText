@@ -22,6 +22,7 @@ class SaveFile:
             # Asks to save as new if file doesn't exists and function aren't able to create
             if (not can_create and not path.exists(file_path)
                     or dirname(file_path) == gettempdir()):
+                Events.trigger("DestroyTab", file_path, True)
                 SaveFile.save_as(content, file_path)
                 return
             
@@ -50,10 +51,10 @@ class SaveFile:
         new_file_path: str | None = FileSaveDialog.ask_save_as()
                 
         if new_file_path: # If user created a file
+            Events.trigger("DestroyTab", file_path or "blank", True)
             SaveFile.save(content, new_file_path, True) # Implements a recursion to save
             Events.trigger("TabSwitch", new_file_path)
             
             if (file_path and dirname(file_path) == gettempdir()
                     and exists(file_path)):
                 remove(file_path)
-                
