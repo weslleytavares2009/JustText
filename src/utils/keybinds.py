@@ -13,6 +13,6 @@ class Keybinds:
         self.app_root.bind("<Control-Shift-S>", lambda _: Events.trigger("SaveFileAs"))
         
         # Tab management
-        self.app_root.bind("<Control-t>", lambda _: Events.trigger("CreateTab"))
+        self.app_root.bind("<Control-n>", lambda _: Events.trigger("CreateTab"))
         self.app_root.bind("<Control-w>", lambda _: Events.trigger("DestroyTab"))
         
